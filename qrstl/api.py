@@ -1,12 +1,12 @@
 import pathlib
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
 from qrstl.qr import QrCodeParams
 from qrstl.worker.api import enqueue_preview_job
 
-app = FastAPI()
+JOB_ID_REGEX = r"^[a-z0-9][64]$"
 
 
 class QrCodeApiParams(BaseModel):
@@ -14,28 +14,28 @@ class QrCodeApiParams(BaseModel):
 
     title: str | None = None
     title_font: str = "Liberation Mono:style=Bold"
-    title_size_mm: float = 8
+    title_size_mm: float = 10
 
     subtitle: str | None = None
     subtitle_font: str = "Liberation Mono:style=Italic"
-    subtitle_size_mm: float = 6
+    subtitle_size_mm: float = 8
 
     titles_spacing_mm: float = 3
-    titles_thickness_mm: float = 0.4
+    titles_thickness_mm: float = 0.6
 
     qr_size_mm: float = 50
-    qr_border_mm: float = 5
+    qr_border_mm: float = 2.5
     qr_thickness_mm: float = 0.6
 
-    frame_thickness_mm: float = 1
-    frame_outline_mm: float = 1
-    frame_outline_thickness_mm: float = 0.2
+    frame_thickness_mm: float = 2
+    frame_outline_mm: float = 0
+    frame_outline_thickness_mm: float = 0.6
     frame_fillet_radius_mm: float = 5
 
     nfc: bool = True
     nfc_diameter_mm: float = 30
-    nfc_thickness_mm: float = 0.2
-    nfc_base_offset_mm: float = 0.2
+    nfc_thickness_mm: float = 0.6
+    nfc_base_offset_mm: float = 0.6
 
     magnets: bool = True
     magnets_diameter_mm: float = 5.5
@@ -71,8 +71,11 @@ class QrCodeApiParams(BaseModel):
         )
 
 
+app = FastAPI()
+
+
 @app.post("/preview")
-def preview_post(params: QrCodeApiParams):
+def do_preview(params: QrCodeApiParams):
     qr_params = params.to_qr_code_params()
 
     enqueue_preview_job(qr_params)
@@ -80,8 +83,8 @@ def preview_post(params: QrCodeApiParams):
     return {"id": qr_params.sha}
 
 
-@app.get("/preview/{job_id}")
-def preview_get(job_id: str):
+@app.get("/status/{job_id}")
+def status(job_id: str = Query(..., regex=JOB_ID_REGEX)):
     path = pathlib.Path(f"qrout/{job_id}.png")
     if not path.exists():
         return {"error": "Not found"}
