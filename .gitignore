@@ -1,0 +1,8 @@
+__pycache__
+*.pyc
+
+.venv
+venv
+
+qrout
+redis_data
